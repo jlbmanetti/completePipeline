@@ -16,8 +16,8 @@ Concise log of what we build, why, and key decisions. Use this to follow step-by
 
 | Step | What | Status | Notes |
 |------|------|--------|--------|
-| 0 | Repo setup + docs | — | PROJECT_GUIDE.md, BUILD_NOTES.md, git remote |
-| 1 | Dataset + ingestion | Next | Get Olist CSVs → landing (local/S3); decide Airbyte vs script |
+| 0 | Repo setup + docs | ✅ | PROJECT_GUIDE.md, BUILD_NOTES.md, git remote, first push |
+| 1 | Dataset + ingestion | 🔄 | Landing `data/raw/olist/`, README, download script; next: get CSVs then S3/Snowflake |
 | 2 | Datalake (S3) | — | Buckets, layout (raw/landing) |
 | 3 | Snowflake raw | — | Load from S3 or Airbyte |
 | 4 | DBT (staging → silver → gold) | — | Models, tests |
@@ -36,17 +36,19 @@ Concise log of what we build, why, and key decisions. Use this to follow step-by
 
 ---
 
-## Step 0 — Repo & docs (current)
+## Step 0 — Repo & docs ✅
 
-- **Done:** PROJECT_GUIDE.md (full spec), BUILD_NOTES.md (this file).
-- **Next:** Git init (if needed), remote `https://github.com/jlbmanetti/completePipeline.git`, initial commit and push.
+- **Done:** PROJECT_GUIDE.md, BUILD_NOTES.md, .gitignore. Git inited, remote `https://github.com/jlbmanetti/completePipeline.git`, first push to `main`.
 
 ---
 
-## Step 1 — Dataset & ingestion (next)
+## Step 1 — Dataset & ingestion (in progress)
 
-- **Dataset:** Olist — multiple CSVs (orders, customers, order_items, products, etc.).
-- **Planned:** Download or clone dataset → define landing (e.g. `data/raw/olist/` or S3 prefix) → document schema/sources → choose ingestion path (script vs Airbyte) for later automation.
+- **Dataset:** Olist — 9 CSVs (customers, orders, order_items, order_payments, order_reviews, products, sellers, geolocation, product_category_name_translation).
+- **Done:**
+  - Landing zone: `data/raw/olist/` with `README.md` (file list, sources, how to get data).
+  - Script: `scripts/download_olist.py` (Kaggle API) for optional one-shot download.
+- **Next:** You download the CSVs (Kaggle or GitHub) into `data/raw/olist/`. Then we can add S3 upload (or Airbyte) and Snowflake load.
 
 ---
 

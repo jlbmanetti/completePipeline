@@ -1,5 +1,6 @@
 # Data (keep repo light; document where to get Olist)
-data/
+data/**/*.csv
+data/**/*.parquet
 *.csv
 *.parquet
 
