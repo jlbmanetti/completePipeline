@@ -1,0 +1,7 @@
+# Scripts (upload to S3, download Olist)
+boto3>=1.28.0
+kaggle>=1.5.0
+
+# Airflow: install in Airflow env if running DAGs locally
+# apache-airflow-providers-amazon>=8.0.0
+# apache-airflow-providers-airbyte>=4.0.0

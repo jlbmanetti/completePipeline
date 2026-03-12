@@ -17,9 +17,9 @@ Concise log of what we build, why, and key decisions. Use this to follow step-by
 | Step | What | Status | Notes |
 |------|------|--------|--------|
 | 0 | Repo setup + docs | ✅ | PROJECT_GUIDE.md, BUILD_NOTES.md, git remote, first push |
-| 1 | Dataset + ingestion | 🔄 | Landing `data/raw/olist/`, README, download script; next: get CSVs then S3/Snowflake |
-| 2 | Datalake (S3) | — | Buckets, layout (raw/landing) |
-| 3 | Snowflake raw | — | Load from S3 or Airbyte |
+| 1 | Dataset + ingestion | ✅ | Landing, download script, **S3 upload + Airbyte (orchestrated by Airflow)** |
+| 2 | Datalake (S3) | ✅ | Upload to `s3://bucket/raw/olist/` (script + DAG task) |
+| 3 | Snowflake raw | 🔄 | Airbyte S3 → Snowflake; set connection and run DAG |
 | 4 | DBT (staging → silver → gold) | — | Models, tests |
 | 5 | ML (Python/PySpark) | — | Train; write scores to Snowflake |
 | 6 | Airflow | — | DAG: ingest → DBT → ML |
@@ -30,7 +30,7 @@ Concise log of what we build, why, and key decisions. Use this to follow step-by
 
 ## Key decisions & open questions
 
-- **Ingestion:** Olist is CSV. Options: (A) Download once → place in S3 or folder; (B) Airbyte file connector (if path/S3 available); (C) Airflow task that downloads/syncs. We'll pick one in Step 1.
+- **Ingestion (chosen):** Airflow uploads local `data/raw/olist/*.csv` → S3; Airflow triggers Airbyte connection S3 → Snowflake. So: datalake (S3) + warehouse load (Airbyte) both orchestrated by one DAG.
 - **Environments:** Snowflake (trial), S3 (AWS or LocalStack), Airflow (local/Docker), Airbyte (Docker) — we'll set as we go.
 - *Your questions can go here or inline under each step.*
 
@@ -42,13 +42,20 @@ Concise log of what we build, why, and key decisions. Use this to follow step-by
 
 ---
 
-## Step 1 — Dataset & ingestion (in progress)
+## Step 1 — Dataset & ingestion ✅
 
-- **Dataset:** Olist — 9 CSVs (customers, orders, order_items, order_payments, order_reviews, products, sellers, geolocation, product_category_name_translation).
+- **Dataset:** Olist — 9 CSVs in `data/raw/olist/` (you downloaded them).
 - **Done:**
-  - Landing zone: `data/raw/olist/` with `README.md` (file list, sources, how to get data).
-  - Script: `scripts/download_olist.py` (Kaggle API) for optional one-shot download.
-- **Next:** You download the CSVs (Kaggle or GitHub) into `data/raw/olist/`. Then we can add S3 upload (or Airbyte) and Snowflake load.
+  - Landing zone, `scripts/download_olist.py`, `scripts/upload_olist_to_s3.py` (local → S3).
+  - **docs/INGESTION_S3_AIRBYTE.md** — full procedure: S3 layout, Airbyte setup (S3 source, Snowflake destination), Airflow connections/variables, order of operations.
+  - **airflow/dags/ingest_olist_s3_airbyte.py** — DAG: `upload_olist_to_s3` >> `trigger_airbyte_s3_to_snowflake` (AirbyteTriggerSyncOperator).
+  - **requirements.txt** — boto3, kaggle.
+- **Your next steps (study):**
+  1. Create S3 bucket; set AWS credentials in Airflow (`aws_default`).
+  2. Run `python scripts/upload_olist_to_s3.py --bucket <your-bucket>` once to populate S3 (or run the DAG).
+  3. In Airbyte: create S3 source (bucket + prefix `raw/olist`), Snowflake destination, Connection; copy Connection ID.
+  4. In Airflow: set connection `airbyte_default` (Airbyte API), Variable `airbyte_connection_id_olist`, and optional `s3_bucket` / `s3_prefix_olist` / `olist_local_path`.
+  5. Run DAG `ingest_olist_s3_airbyte` to upload and sync to Snowflake.
 
 ---
 
