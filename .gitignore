@@ -1,0 +1,33 @@
+# Data (keep repo light; document where to get Olist)
+data/
+*.csv
+*.parquet
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+.env.local
+*.egg-info/
+
+# DBT
+target/
+dbt_packages/
+logs/
+
+# Airflow
+airflow.db
+*.log
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Secrets (never commit)
+*.pem
+credentials*.json
+snowflake_credentials*
