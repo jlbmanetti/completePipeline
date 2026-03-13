@@ -2,16 +2,27 @@
 Upload Olist CSVs from data/raw/olist/ to S3 (datalake raw layer).
 
 Usage:
-  Set env: S3_BUCKET (required), optionally S3_PREFIX (default raw/olist), AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY.
-  Or: python upload_olist_to_s3.py --bucket completepipeline-raw [--prefix raw/olist]
+  1. Copy .env.example to .env and set AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY (and optionally S3_BUCKET).
+  2. Run: python scripts/upload_olist_to_s3.py
+  Or pass args: python scripts/upload_olist_to_s3.py --bucket completepipeline-raw
 
-Also used by Airflow DAG (same logic, config from Variables).
+No further AWS Console steps after creating the bucket — this script uses your credentials to write to S3.
+Airflow DAG uses the same idea but gets credentials from Airflow connection aws_default.
 """
 import argparse
 import os
 import sys
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# Load .env from repo root when running this script locally (so you don't have to export vars)
+_env_file = os.path.join(REPO_ROOT, ".env")
+if os.path.isfile(_env_file):
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(_env_file)
+    except ImportError:
+        pass  # run without dotenv: use system env or --bucket
 DEFAULT_LOCAL_DIR = os.path.join(REPO_ROOT, "data", "raw", "olist")
 DEFAULT_S3_PREFIX = "raw/olist"
 

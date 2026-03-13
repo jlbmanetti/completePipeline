@@ -1,12 +1,33 @@
-# Ingestion: Local CSVs → S3 (Airflow) → Snowflake (Airbyte)
+# Ingestion: Local CSVs → S3 → Snowflake
 
 How the first pipeline step works and how to set it up.
 
-## Flow
+---
 
-1. **Airflow** runs a task that uploads `data/raw/olist/*.csv` to **S3** (datalake raw layer).
-2. **Airflow** triggers an **Airbyte** connection that syncs from **S3** (source) to **Snowflake** (destination).
-3. Airbyte creates/updates raw tables in Snowflake (one stream per CSV or per configured stream).
+## Who does what (concepts)
+
+**Airflow is only the orchestrator.** It does not “ingest” in the sense of being an ETL/EL tool. It *schedules and runs* tasks:
+
+- **Task 1** runs *code* (a Python script using S3Hook/boto3) that **copies files** from your machine to S3. So the “ingestion into S3” is done by that **copy step**, which Airflow *orchestrates* — not by Airflow as a data-ingestion product.
+- **Task 2** tells **Airbyte** to run. **Airbyte** is the tool that **ingests** from S3 into Snowflake (S3 source → Snowflake destination). Airflow only triggers it and waits.
+
+So: **ingestion into S3** = copy task (orchestrated by Airflow). **Ingestion into Snowflake** = **Airbyte** (also orchestrated by Airflow).
+
+**Why not DBT from S3 to Snowflake?**  
+**DBT runs only inside the data warehouse.** It connects to Snowflake and runs SQL that reads from *tables that already exist* in Snowflake and writes to other tables (e.g. raw → silver → gold). DBT does not connect to S3 or “pull” data from the datalake. So the sequence is:
+
+1. **Load** S3 → Snowflake raw tables (by a **loader**: Airbyte, or alternatively Snowflake `COPY INTO` from an S3 stage).
+2. **Transform** inside Snowflake: **DBT** reads raw tables and builds silver/gold tables (all in Snowflake).
+
+So: **S3 → Snowflake raw** = Airbyte (or Snowflake stage + COPY). **Raw → silver → gold** = DBT. We use Airbyte for the load so you practice it; the alternative would be an Airflow task that runs `COPY INTO ... FROM @s3_stage` in Snowflake, then DBT for the rest.
+
+---
+
+## Flow (this project)
+
+1. **Airflow** runs a task that **uploads** `data/raw/olist/*.csv` to **S3** (datalake raw layer) — orchestration + a simple copy.
+2. **Airflow** triggers **Airbyte**, which **ingests** from S3 into **Snowflake** (raw tables).
+3. Later, **DBT** (separate step) will read those raw tables in Snowflake and build silver/gold — no S3 involved in DBT.
 
 ## Prerequisites
 
@@ -14,6 +35,12 @@ How the first pipeline step works and how to set it up.
 - **Snowflake:** Trial or account; warehouse, database, schema for raw data; user/password or key-pair.
 - **Airbyte:** Running (Docker or Cloud); S3 source and Snowflake destination configured; one connection S3 → Snowflake.
 - **Airflow:** Running; connections: `aws_default` (S3), `airbyte_default` (Airbyte API); DAG `ingest_olist_s3_airbyte` deployed.
+
+---
+
+## 0. Do you need to do more in AWS?
+
+**No.** After you create the bucket, you don’t need any other AWS Console steps. The **Python script** (or the Airflow task) uses your **AWS credentials** to upload files to S3. So: bucket created → credentials in `.env` or Airflow → run script or DAG. No IAM policies to edit unless your user doesn’t have S3 access yet (new accounts often do for the same account).
 
 ---
 

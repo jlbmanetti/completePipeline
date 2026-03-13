@@ -30,7 +30,7 @@ Concise log of what we build, why, and key decisions. Use this to follow step-by
 
 ## Key decisions & open questions
 
-- **Ingestion (chosen):** Airflow uploads local `data/raw/olist/*.csv` → S3; Airflow triggers Airbyte connection S3 → Snowflake. So: datalake (S3) + warehouse load (Airbyte) both orchestrated by one DAG.
+- **Ingestion (chosen):** Airflow *orchestrates* only. A task runs a copy (local → S3); Airbyte does the real *ingestion* (S3 → Snowflake). DBT does *not* read from S3 — it only runs inside Snowflake (raw → silver → gold) after data is already loaded. See **docs/INGESTION_S3_AIRBYTE.md** “Who does what”.
 - **Environments:** Snowflake (trial), S3 (AWS or LocalStack), Airflow (local/Docker), Airbyte (Docker) — we'll set as we go.
 - *Your questions can go here or inline under each step.*
 
@@ -50,12 +50,24 @@ Concise log of what we build, why, and key decisions. Use this to follow step-by
   - **docs/INGESTION_S3_AIRBYTE.md** — full procedure: S3 layout, Airbyte setup (S3 source, Snowflake destination), Airflow connections/variables, order of operations.
   - **airflow/dags/ingest_olist_s3_airbyte.py** — DAG: `upload_olist_to_s3` >> `trigger_airbyte_s3_to_snowflake` (AirbyteTriggerSyncOperator).
   - **requirements.txt** — boto3, kaggle.
-- **Your next steps (study):**
-  1. Create S3 bucket; set AWS credentials in Airflow (`aws_default`).
-  2. Run `python scripts/upload_olist_to_s3.py --bucket <your-bucket>` once to populate S3 (or run the DAG).
-  3. In Airbyte: create S3 source (bucket + prefix `raw/olist`), Snowflake destination, Connection; copy Connection ID.
-  4. In Airflow: set connection `airbyte_default` (Airbyte API), Variable `airbyte_connection_id_olist`, and optional `s3_bucket` / `s3_prefix_olist` / `olist_local_path`.
-  5. Run DAG `ingest_olist_s3_airbyte` to upload and sync to Snowflake.
+- **S3 bucket:** ✅ Created — `completepipeline-raw` (region **us-east-2**). **Upload:** ✅ Olist CSVs are in `s3://completepipeline-raw/raw/olist/`.
+- **Credentials:** `.env` with AWS keys; IAM user has S3 policy for the bucket.
+- **Next steps (S3 → Snowflake → Airflow):** see **"Next steps"** section below.
+
+---
+
+## Next steps (after S3 upload)
+
+Do these in order. Full detail in **docs/INGESTION_S3_AIRBYTE.md**.
+
+| # | Step | What you need / do |
+|---|------|--------------------|
+| **1** | **Snowflake** | Trial or account; create a **warehouse**, **database** (e.g. `COMPLETEPIPELINE`), **schema** (e.g. `RAW`). Note account id, user, password — Airbyte will use them. |
+| **2** | **Airbyte** | Run Airbyte (Docker or Cloud). **Source:** S3 — bucket `completepipeline-raw`, prefix `raw/olist`, format CSV; add streams (one per CSV or glob). **Destination:** Snowflake — account, warehouse, database, schema, user, password. **Connection:** S3 → Snowflake; save and **copy the Connection ID** (UUID). |
+| **3** | **Airflow** | Run Airflow. **Connections:** `aws_default` (AWS Access Key + Secret), `airbyte_default` (Airbyte API: host e.g. `http://localhost:8000`, and auth if needed). **Variable:** `airbyte_connection_id_olist` = the Connection ID from step 2. Optional: `s3_bucket`, `s3_prefix_olist`, `olist_local_path`. |
+| **4** | **Run pipeline** | Trigger DAG `ingest_olist_s3_airbyte`. It uploads to S3 and triggers the Airbyte sync; raw tables appear in Snowflake. |
+
+Then we can move on to **DBT** (staging → silver → gold in Snowflake).
 
 ---
 
