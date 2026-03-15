@@ -56,15 +56,24 @@ Concise log of what we build, why, and key decisions. Use this to follow step-by
 
 ---
 
+## Phase 2 — Airflow (Docker) ✅
+
+- **Done:** `docker-compose.airflow.yaml` (Postgres + Airflow webserver + scheduler; providers: Amazon, Airbyte; mounts: `./airflow/dags`, `./data`). **docs/PHASE2_AIRFLOW_DOCKER_STEP_BY_STEP.md** — full step-by-step with Airflow concepts (DAG, task, connections, variables), DB init, admin user, connections/variables, trigger and troubleshoot.
+- **NEXT_STEPS_STEP_BY_STEP.md** updated to point to Phase 2 doc; variable `olist_local_path` = `/opt/airflow/data/raw/olist` when using Docker.
+
+---
+
 ## Next steps (after S3 upload)
 
-Do these in order. Full detail in **docs/INGESTION_S3_AIRBYTE.md**.
+**Step-by-step guide:** **docs/NEXT_STEPS_STEP_BY_STEP.md** (Airbyte Docker → Airflow Docker → run DAG).  
+**Phase 2 in detail:** **docs/PHASE2_AIRFLOW_DOCKER_STEP_BY_STEP.md** (Airflow concepts + Docker commands).  
+Full concepts and layout in **docs/INGESTION_S3_AIRBYTE.md**.
 
 | # | Step | What you need / do |
 |---|------|--------------------|
 | **1** | **Snowflake** | Trial or account; create a **warehouse**, **database** (e.g. `COMPLETEPIPELINE`), **schema** (e.g. `RAW`). Note account id, user, password — Airbyte will use them. |
 | **2** | **Airbyte** | Run Airbyte (Docker or Cloud). **Source:** S3 — bucket `completepipeline-raw`, prefix `raw/olist`, format CSV; add streams (one per CSV or glob). **Destination:** Snowflake — account, warehouse, database, schema, user, password. **Connection:** S3 → Snowflake; save and **copy the Connection ID** (UUID). |
-| **3** | **Airflow** | Run Airflow. **Connections:** `aws_default` (AWS Access Key + Secret), `airbyte_default` (Airbyte API: host e.g. `http://localhost:8000`, and auth if needed). **Variable:** `airbyte_connection_id_olist` = the Connection ID from step 2. Optional: `s3_bucket`, `s3_prefix_olist`, `olist_local_path`. |
+| **3** | **Airflow** | Docker: `docker-compose.airflow.yaml` (see Phase 2 doc). **Connections:** `aws_default` (AWS), `airbyte_default` (Host: `http://host.docker.internal:8000`). **Variables:** `airbyte_connection_id_olist`, `olist_local_path` = `/opt/airflow/data/raw/olist`. |
 | **4** | **Run pipeline** | Trigger DAG `ingest_olist_s3_airbyte`. It uploads to S3 and triggers the Airbyte sync; raw tables appear in Snowflake. |
 
 Then we can move on to **DBT** (staging → silver → gold in Snowflake).
