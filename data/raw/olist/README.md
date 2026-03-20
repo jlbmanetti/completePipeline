@@ -35,4 +35,4 @@ Landing zone for the **Brazilian E-Commerce Public Dataset by Olist** (2016–20
    copy _tmp_olist\*.csv data\raw\olist\
    ```
 
-Downstream: Airflow or Airbyte will read from this folder (or from S3 if we copy here → S3 later).
+Downstream: load manually to Snowflake (UI/SQL), or copy to S3 first using `scripts/upload_olist_to_s3.py`.
